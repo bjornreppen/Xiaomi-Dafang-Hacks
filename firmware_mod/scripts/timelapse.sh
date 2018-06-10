@@ -5,7 +5,7 @@
 
 PIDFILE='/run/timelapse.pid'
 TIMELAPSE_CONF='/system/sdcard/config/timelapse.conf'
-BASE_SAVE_DIR='/system/sdcard/DCIM/timelapse'
+BASE_SAVE_DIR='/system/sdcard/www/timelapse'
 
 if [ -f "$TIMELAPSE_CONF" ]; then
     . "$TIMELAPSE_CONF" 2>/dev/null
