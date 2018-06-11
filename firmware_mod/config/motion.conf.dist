@@ -13,8 +13,8 @@ motion_tracking=off
 # Configure how to deal with motion events:
 
 motion_trigger_led=true
-save_snapshot=false
+save_snapshot=true
 max_snapshots=20
-publish_mqtt_message=false
+publish_mqtt_message=true
 sendemail=false
-save_dir=/system/sdcard/motion/stills
+save_dir=/system/sdcard/www/motion
