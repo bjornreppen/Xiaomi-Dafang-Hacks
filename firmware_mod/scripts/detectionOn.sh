@@ -25,7 +25,7 @@ fi
 # Publish a mqtt message
 if [ "$publish_mqtt_message" = true ] ; then
 	. /system/sdcard/config/mqtt.conf
-	/system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/"${HOSTNAME}" ${MOSQUITTOOPTS} ${MOSQUITTOPUBOPTS} -m "ON"
+	/system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motiondetect/"${HOSTNAME}" ${MOSQUITTOOPTS} ${MOSQUITTOPUBOPTS} -m "ON"
 	if [ "$save_snapshot" = true ] ; then
 		/system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/snapshot/"${HOSTNAME}" ${MOSQUITTOOPTS} ${MOSQUITTOPUBOPTS} -f $save_dir/$filename
 	fi
