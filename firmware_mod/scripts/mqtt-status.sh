@@ -20,7 +20,8 @@ echo "{
 \"signal_level\":$signal_level, \
 \"link_quality\":$link_quality, \
 \"noise_level\":$noise_level \
-}, \"led\": { \
+},\
+\"led\": { \
 \"blue\":\"$(blue_led status)\", \
 \"yellow\":\"$(yellow_led status)\", \
 \"ir\":\"$(ir_led status)\" \
