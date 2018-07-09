@@ -153,8 +153,8 @@ insmod /system/sdcard/driver/sinfo.ko
 dropbear_status=$(/system/sdcard/bin/dropbearmulti dropbear -R)
 echo "dropbear: $dropbear_status" >> $LOGPATH
 
-bftpd_status=$(/system/sdcard/bin/bftpd -d)
-echo "bftpd: $bftpd_status" >> $LOGPATH
+# bftpd_status=$(/system/sdcard/bin/bftpd -d)
+# echo "bftpd: $bftpd_status" >> $LOGPATH
 
 ## Create a certificate for the webserver
 if [ ! -f $CONFIGPATH/lighttpd.pem ]; then
