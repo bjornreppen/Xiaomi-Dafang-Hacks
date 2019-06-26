@@ -1,198 +1,108 @@
 #!/bin/sh
 
 # Script to calculate the camera movement
-# The screen is split as below (0,1,2,3 are the parameters of the script)
+# The screen is split as shown below
+# (1,2,3,4 are the arguments of the script)
+#
 #           +--------------------------------------+
 #           |                    |                 |
-#           |           0        |      1          |
+#           |          1         |      2          |
 #           |                    |                 |
 #           +--------------------------------------+
 #           |                    |                 |
-#           |          2         |      3          |
+#           |          3         |      4          |
 #           |                    |                 |
 #           +--------------------------------------+
 
-STEPS=100
-FILECAMERAPOS=/tmp/cameraposition
+. /system/sdcard/scripts/common_functions.sh
 
-motorLeft(){
-      /system/sdcard/bin/motor -d l -s ${1}
-}
-
-motorRight(){
-      /system/sdcard/bin/motor -d r -s ${1}
-}
-
-motorUp() {
-      /system/sdcard/bin/motor -d u -s ${1}
-}
-
-motorDown() {
-      /system/sdcard/bin/motor -d d -s ${1}
-}
+STEPS=$STEP
+FILECAMERAPOS=/system/sdcard/config/cameraposition
 
 backtoOrigin() {
-    # return to origin for both axis
 
-    # Get values in saved config file
     if [ -f ${FILECAMERAPOS} ]; then
-	    origin_x_axis=`grep "x:" ${FILECAMERAPOS} | sed "s/x: //"`
-	    origin_y_axis=`grep "y:" ${FILECAMERAPOS} | sed "s/y: //"`
+        # Get values in saved config file
+        origin_x_axis=`grep "x:" ${FILECAMERAPOS} | sed "s/x: //"`
+        origin_y_axis=`grep "y:" ${FILECAMERAPOS} | sed "s/y: //"`
     else
-	    origin_x_axis=0
-        origin_y_axis=0
+        # No such file exists: create it with the current values
+        /system/sdcard/bin/motor -d s > ${FILECAMERAPOS}
     fi
 
-    # Get the current position
-    x_axis=`/system/sdcard/bin/motor -d s | grep "x:" | sed "s/x: //"`
-    y_axis=`/system/sdcard/bin/motor -d s | grep "y:" | sed "s/y: //"`
-
-	#--------------------------- X Position -------------------------------------------
-    #Calculate the difference between the origin and the position now
-    if [ ${origin_x_axis} -lt ${x_axis} ]
-    then
-	    diff=$((${origin_x_axis} - ${x_axis}))
-
-	    #This is a substitution trick to take the abs number
-	    diff=${diff#-}
-	    motorLeft "${diff}"
-    else
-	    diff=$((${x_axis} - ${origin_x_axis}))
-
-	    #This is a substitution trick to take the abs number
-	    diff=${diff#-}
-	    motorRight "${diff}"
-    fi
-    # Let some time for the motor to turn
-    sleep 1
-
-	#--------------------------- Y Position -------------------------------------------
-    #Calculate the difference between the origin and the position now
-    if [ ${origin_y_axis} -lt ${y_axis} ]
-    then
-        diff=$((${origin_y_axis} - ${y_axis}))
-
-        #This is a substitution trick to take the abs number
-        diff=${diff#-}
-
-        motorDown "${diff}"
-    else
-        diff=$((${y_axis} - ${origin_y_axis}))
-
-        #This is a substitution trick to take the abs number
-        diff=${diff#-}
-
-        motorUp "${diff}"
-    fi
-
-    # Let some time for the motor to turn
-    sleep 1
+    # return to origin for both axis
+    /system/sdcard/scripts/PTZpresets.sh $origin_x_axis $origin_y_axis
 }
 
 #################### Start ###
 
 # If no argument that's mean the camera need to return to its original position
-# the 5th arguments is '&'
-if [ $# -ne 5 ]
-then
+if [ $# -eq 0 ]; then
     backtoOrigin
-    return 0;
+    return 0
 fi
-
-# Now save the "origin" values of the camera
-# Save it to tmp as when the camera reboots the camera are set to 0
-if [ -f ${FILECAMERAPOS} ]; then
-	/system/sdcard/bin/motor -d s > ${FILECAMERAPOS}
-fi
-
-
-UP=0
-DOWN=0
-LEFT=0
-RIGHT=0
 
 # Display the areas ...
 echo $1 $2
 echo $3 $4
 
-
 # Sum all the parameters, that gives the number of region detected
 # Only 2 are supported
-if [ $((${1} + ${2} + ${3} +${4})) -gt 2 ]
-then
-	echo "No move if more than 3 detected regions"
+if [ $((${1} + ${2} + ${3} +${4})) -gt 2 ]; then
+    echo "no move: more than 2 detected regions"
     return 0
 fi
 
-# Basic algorithm to calculate the movement
-# Not optimized, if you have ideas to simplify it ...
+UP=0
+DOWN=0
+RIGHT=0
+LEFT=0
 
-if  [ "${1}" == "1" ] && [ "${2}" == "1" ]
-then
-	UP=1
-
-elif [ "${1}" == "1" ] && [ "${3}" == "1" ]
-then
-	LEFT=1
-
-elif [ "${2}" == "1" ] && [ "${4}" == "1" ]
-then
-	RIGHT=1
-
-elif [ "${3}" == "1" ] && [ "${4}" == "1" ]
-then
-	DOWN=1
-
-elif [ "${1}" == "1" ]
-then
-	UP=1
-	LEFT=1
-
-elif [ "${2}" == "1" ]
-then
-	UP=1
-	RIGHT=1
-
-elif [ "${3}" == "1" ]
-then
-	LEFT=1
-	DOWN=1
-
-elif [ "${4}" == "1" ]
-then
-	RIGHT=1
-	DOWN=1
+# Calculate the movement
+if  [ "${1}" == "1" ] || [ "${2}" == "1" ]; then
+    UP=1
 fi
 
-# Some sanity checks
-if [ "${UP}" != 0 ] && [ "${DOWN}" != 0 ]
-then
-	echo "no move: up and down at the same time"
-	return 0
-fi
-if [ "${RIGHT}" != 0 ] && [ "${LEFT}" != 0 ]
-then
-	echo "no move: right and left at the same time"
-	return 0
+if [ "${3}" == "1" ] || [ "${4}" == "1" ]; then
+    DOWN=1
 fi
 
-if [ ${RIGHT} != 0 ]
-then
-	echo "Right move"
-	motorRight ${STEPS}
+if [ "${2}" == "1" ] || [ "${4}" == "1" ]; then
+    RIGHT=1
 fi
-if [ ${LEFT} != 0 ]
-then
-	echo "Left move"
-	motorLeft ${STEPS}
+
+if [ "${1}" == "1" ] || [ "${3}" == "1" ]; then
+    LEFT=1
 fi
-if [ ${UP} != 0 ]
-then
-	echo "Up move"
-	motorUp ${STEPS}
+
+# Sanity checks
+if [ ${UP} != 0 ] && [ ${DOWN} != 0 ]; then
+    echo "no move vertically: up and down at the same time"
+    UP=0
+    DOWN=0
 fi
-if [ ${DOWN} != 0 ]
-then
-	echo "Down move"
-	motorDown ${STEPS}
+
+if [ ${RIGHT} != 0 ] && [ ${LEFT} != 0 ]; then
+    echo "no move horizontally: right and left at the same time"
+    RIGHT=0
+    LEFT=0
 fi
+
+# Do the actual movement in the background
+(
+    if [ ${UP} == 1 ]; then
+        motor up ${STEPS}
+    fi
+
+    if [ ${DOWN} == 1 ]; then
+        motor down ${STEPS}
+    fi
+
+    if [ ${RIGHT} == 1 ]; then
+        motor right ${STEPS}
+    fi
+
+    if [ ${LEFT} == 1 ]; then
+        motor left $STEPS
+    fi
+) &>/dev/null

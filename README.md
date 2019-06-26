@@ -1,4 +1,4 @@
-## Xiaomi DaFang Hacks / XiaoFang 1S with T20 Processor
+## Xiaomi DaFang Hacks / XiaoFang 1S / Wyzecam V2 / Wyzecam Pan / Other T20 Devices
 
 [![Join the chat at https://gitter.im/Xiaomi-Dafang-Hacks/Lobby](https://badges.gitter.im/Xiaomi-Dafang-Hacks/Lobby.svg)](https://gitter.im/Xiaomi-Dafang-Hacks/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -10,8 +10,15 @@ Xiaomi Dafang | ![Dafang](/dafang.png)
 Xiaomi Xiaofang 1S | ![XiaoFang](/xiaofang.png)
 Wyzecam Pan | ![Dafang](/dafang.png)
 Wyzecam V2 | ![XiaoFang](/xiaofang.png)
+Neos SmartCam (NB The original firmware is not yet available, proceed with caution!) | ![XiaoFang](/xiaofang.png)
+Sannce I21AG, MixSight HX-I2110T2, WanScam HW0036, Escam G02, Digoo BB-M2 | ![XiaoFang](/sannce.jpg)
+Any other Device with Ingenic T10/T20 Device | ![T20](/t20.png)
 
 If you have a classic XiaoFang with a ARM-Processor, consider using https://github.com/samtap/fang-hacks
+
+### Attentention: Do not install the latest Firmware on your Device. It will disable the support of this hack. 
+
+Further information about this topic can be found here: https://github.com/EliasKotlyar/Xiaomi-Dafang-Hacks/issues/669
 
 
 ## How to install the CFW
@@ -30,16 +37,22 @@ Or ask in our [Gitter channel](https://gitter.im/Xiaomi-Dafang-Hacks) for help.
 If you don't find anything related, feel free to open a new issue.
 If you/we solve your issue, please condense your gained insights into a pull request for continuous self-improvement.
 
+### Partner Community:
+
+We are really excited to announce that we have now a open source partner community, which provides a lot of content about the T10/T20/T30 Devices
+
+![Ebaina](/ebaina.png)
+
+Start here for more informations:
+http://bbs.ebaina.com/thread-53811-1-1.html
+
+欢迎来到这个存储库亲爱的朋友们。 从这里开始，获取关于在您的设备上获取此hack的教程：[开始](/hacks/install_cfw_cn.md)
+
+
 
 ## Technical Information about the hack:
 
 Start [here](/hacks/technical.md)
-
-
-## Viewer and control solution:
-
-After install, you can use this [android application](https://play.google.com/store/apps/details?id=io.ext.medinvention.dafangcam) developed by [@medinvention](https://github.com/mmohamed) and join us on [Gitter](https://gitter.im/Dafang-Hacked-Cam-App)
-
 
 ## Integration in Home Automation Systems:
 
@@ -48,6 +61,8 @@ After install, you can use this [android application](https://play.google.com/st
 [Home Assistant](/integration/homeassistant/homeassistant.md)
 
 [HomeKit](/integration/homekit/homekit.md)
+
+[OpenHab](https://community.openhab.org/t/how-to-configure-a-hacked-xiaomi-dafang-to-work-with-openhab/51121)
 
 [Synology](/integration/synology/synology.md)
 

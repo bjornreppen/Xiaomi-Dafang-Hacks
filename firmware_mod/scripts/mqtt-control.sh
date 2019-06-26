@@ -6,8 +6,11 @@
 killall mosquitto_sub 2> /dev/null
 killall mosquitto_sub.bin 2> /dev/null
 
-/system/sdcard/bin/mosquitto_sub.bin -v -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/# | while read -r line ; do
+/system/sdcard/bin/mosquitto_sub.bin -v -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/# -t "${LOCATION}/set" ${MOSQUITTOOPTS} | while read -r line ; do
   case $line in
+    "${LOCATION}/set announce")
+      /system/sdcard/scripts/mqtt-autodiscovery.sh
+      ;;
     "${TOPIC}/set help")
       /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/help ${MOSQUITTOOPTS} -m "possible commands: configured topic + Yellow_LED/set on/off, configured topic + Blue_LED/set on/off, configured topic + set with the following commands: status, $(grep \)$ /system/sdcard/www/cgi-bin/action.cgi | grep -v '[=*]' | sed -e "s/ //g" | grep -v -E '(osd|setldr|settz|showlog)' | sed -e "s/)//g")"
     ;;
@@ -73,7 +76,9 @@ killall mosquitto_sub.bin 2> /dev/null
     ;;
 
     "${TOPIC}/brightness")
-      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/brightness ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(ldr status)"
+      if [ "$SENDLDR" != "false" ]; then
+        /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/brightness ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(ldr status)"
+      fi
     ;;
 
     "${TOPIC}/rtsp_h264_server")
@@ -146,6 +151,34 @@ killall mosquitto_sub.bin 2> /dev/null
       /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/detection ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_detection status)"
     ;;
 
+   "${TOPIC}/motion/send_mail")
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/send_mail ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_send_mail status)"
+    ;;
+
+    "${TOPIC}/motion/send_mail/set ON")
+      motion_send_mail on
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/send_mail ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_send_mail status)"
+    ;;
+
+    "${TOPIC}/motion/send_mail/set OFF")
+      motion_send_mail off
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/send_mail ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_send_mail status)"
+    ;;
+
+   "${TOPIC}/motion/send_telegram")
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/send_telegram ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_send_telegram status)"
+    ;;
+
+    "${TOPIC}/motion/send_telegram/set ON")
+      motion_send_telegram on
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/send_telegram ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_send_telegram status)"
+    ;;
+
+    "${TOPIC}/motion/send_telegram/set OFF")
+      motion_send_telegram off
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/send_telegram ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_send_telegram status)"
+    ;;
+
     "${TOPIC}/motion/tracking")
       /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motion/tracking ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motion_tracking status)"
     ;;
@@ -162,25 +195,116 @@ killall mosquitto_sub.bin 2> /dev/null
 
     "${TOPIC}/motors/vertical/set up")
       motor up
-      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/vertical ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motor status vertical)"
+	  MOTORSTATE=$(motor status vertical)
+	  if [ `/system/sdcard/bin/setconf -g f` -eq 1 ]; then
+		TARGET=$(busybox expr $MAX_Y - $MOTORSTATE)
+	  else
+		TARGET=$MOTORSTATE
+	  fi
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/vertical ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$TARGET"
     ;;
+
     "${TOPIC}/motors/vertical/set down")
       motor down
-      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/vertical ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motor status vertical)"
+	  MOTORSTATE=$(motor status vertical)
+	  if [ `/system/sdcard/bin/setconf -g f` -eq 1 ]; then
+		TARGET=$(busybox expr $MAX_Y - $MOTORSTATE)
+	  else
+		TARGET=$MOTORSTATE
+	  fi	   
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/vertical ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$TARGET"
     ;;
+
+    "${TOPIC}/motors/vertical/set "*)
+      COMMAND=$(echo "$line" | awk '{print $2}')
+      MOTORSTATE=$(motor status vertical)
+      if [ -n "$COMMAND" ] && [ "$COMMAND" -eq "$COMMAND" ] 2>/dev/null; then   
+        if [ `/system/sdcard/bin/setconf -g f` -eq 1 ]; then
+          echo Changing motor from $COMMAND to $MOTORSTATE
+          TARGET=$(busybox expr $MOTORSTATE + $COMMAND - $MAX_Y)
+        else
+          echo Changing motor from $MOTORSTATE to $COMMAND
+          TARGET=$(busybox expr $COMMAND - $MOTORSTATE)
+        fi
+        echo Moving $TARGET
+        if [ "$TARGET" -lt 0 ]; then
+          motor down $(busybox expr $TARGET \* -1)
+        else
+          motor up $TARGET
+        fi
+      else
+        echo Requested $COMMAND is not a number
+      fi
+    ;;
+	
     "${TOPIC}/motors/horizontal/set left")
       motor left
-      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/horizontal ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motor status horizontal)"
+	  MOTORSTATE=$(motor status horizontal)
+	  if [ `/system/sdcard/bin/setconf -g f` -eq 1 ]; then
+		TARGET=$(busybox expr $MAX_X - $MOTORSTATE)
+	  else
+		TARGET=$MOTORSTATE
+	  fi
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/horizontal ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$TARGET"
     ;;
+
     "${TOPIC}/motors/horizontal/set right")
       motor right
-      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/horizontal ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motor status horizontal)"
+	  MOTORSTATE=$(motor status horizontal)
+	  if [ `/system/sdcard/bin/setconf -g f` -eq 1 ]; then
+		TARGET=$(busybox expr $MAX_X - $MOTORSTATE)
+	  else
+		TARGET=$MOTORSTATE
+	  fi
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors/horizontal ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$TARGET"
+    ;;
+
+    "${TOPIC}/motors/horizontal/set "*)
+      COMMAND=$(echo "$line" | awk '{print $2}')
+      MOTORSTATE=$(motor status horizontal)
+      if [ -n "$COMMAND" ] && [ "$COMMAND" -eq "$COMMAND" ] 2>/dev/null; then
+        if [ `/system/sdcard/bin/setconf -g f` -eq 1 ]; then
+          echo Changing motor from $COMMAND to $MOTORSTATE
+          TARGET=$(busybox expr $MOTORSTATE + $COMMAND - $MAX_X)
+        else
+          echo Changing motor from $MOTORSTATE to $COMMAND
+          TARGET=$(busybox expr $COMMAND - $MOTORSTATE)
+        fi
+        echo Moving $TARGET
+        if [ "$TARGET" -lt 0 ]; then
+          motor left $(busybox expr $TARGET \* -1)
+        else
+          motor right $TARGET
+        fi
+      else
+        echo Requested $COMMAND is not a number
+      fi
+    ;;
+
+    "${TOPIC}/motors/set calibrate")
+      motor reset_pos_count
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/motors ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "$(motor status horizontal)"
+    ;;
+
+    "${TOPIC}/remount_sdcard/set ON")
+      remount_sdcard
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/remount_sdcard ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "Remounting the SD Card"
+    ;;
+
+    "${TOPIC}/reboot/set ON")
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/reboot ${MOSQUITTOPUBOPTS} ${MOSQUITTOOPTS} -m "Rebooting the System"
+      reboot_system
+    ;;
+
+    "${TOPIC}/snapshot/set ON")
+      snapshot
+      /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}"/snapshot ${MOSQUITTOOPTS} ${MOSQUITTOPUBOPTS} -f "$filename"
     ;;
 
     "${TOPIC}/set "*)
       COMMAND=$(echo "$line" | awk '{print $2}')
       #echo "$COMMAND"
-      /system/sdcard/bin/curl -k -m 2 ${CURLOPTS} -s https://127.0.0.1/cgi-bin/action.cgi\?cmd="${COMMAND}" -o /dev/null 2>/dev/null
+      F_cmd="${COMMAND}" /system/sdcard/www/cgi-bin/action.cgi -o /dev/null 2>/dev/null
       if [ $? -eq 0 ]; then
         /system/sdcard/bin/mosquitto_pub.bin -h "$HOST" -p "$PORT" -u "$USER" -P "$PASS" -t "${TOPIC}/${COMMAND}" ${MOSQUITTOOPTS} -m "OK (this means: action.cgi invoke with parameter ${COMMAND}, nothing more, nothing less)"
       else

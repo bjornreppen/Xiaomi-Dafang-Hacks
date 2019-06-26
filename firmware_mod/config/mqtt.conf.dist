@@ -32,8 +32,11 @@ MOSQUITTOOPTS=""
 # Add options for mosquitto_pub like -r for retaining messages
 MOSQUITTOPUBOPTS=""
 
-# Add options for curl here e.g --user user:password
-CURLOPTS=""
-
 # Send a mqtt statusupdate every n seconds
 STATUSINTERVAL=30
+
+# Publish and update the light dependant resistor (LDR) status or not. The
+# default value if the variable is not set is to send it. This might be useful
+# for owners of devices that lack the hardware sensor to avoid publishing
+# rubbish.
+SENDLDR="true"

@@ -37,7 +37,7 @@ $(document).ready(function() {
     b.toggleClass('is-loading');
     b.prop('disabled', !b.prop('disabled'));
     var formData = {
-      'tz': $('input[name=tz]').val(),
+      'timeZone': $('select[name=timeZone]').val(),
       'hostname': $('input[name=hostname]').val(),
       'ntp_srv': $('input[name=ntp_srv]').val()
     };
@@ -105,7 +105,8 @@ $(document).ready(function() {
       'AXISenable': axisenable,
       'osdtext': $('input[name=osdtext]').val(),
       'color': $('select[name=color]').val(),
-      'size': $('select[name=size]').val(),
+      'OSDSize': $('input[name=OSDSize]').val(),
+      'fontName': $('select[name=FontName]').val(),
       'spacepixels': $('input[name=spacepixels]').val(),
       'posy': $('input[name=posy]').val(),
       'fixedw': $('select[name=fixedw]').val()

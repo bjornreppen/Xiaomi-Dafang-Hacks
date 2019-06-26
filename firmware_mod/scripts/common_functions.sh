@@ -3,6 +3,29 @@
 # This file is supposed to bundle some frequently used functions
 # so they can be easily improved in one place and be reused all over the place
 
+include () {
+    [[ -f "$1" ]] && source "$1"
+}
+# Set motor range
+MAX_X=2600
+MAX_Y=700
+MIN_X=0
+MIN_Y=0
+STEP=100
+
+# Try to detect hardware model
+detect_model(){
+  if [ -f /driver/8189es.ko ]; then
+    # Its a DaFang
+    echo "Xiaomi Dafang"
+  elif [ -f /driver/8189fs.ko ]; then
+    # Its a XiaoFang T20
+    echo "Xiaomi Xiaofang 1S"
+  else
+    # Its a Wyzecam V2
+    echo "Wyzecam V2"
+  fi
+}
 # Initialize  gpio pin
 init_gpio(){
   GPIOPIN=$1
@@ -30,6 +53,14 @@ setgpio() {
   echo "$2" > "/sys/class/gpio/gpio$GPIOPIN/value"
 }
 
+# Get value for a key in a config_file
+# ignore commented lines
+get_config(){
+  cfg_path=$1
+  cfg_key=$2
+  grep -v '^[[:space:]]*#' "$1"  | grep "$2" | cut -d "=" -f2
+}
+
 # Replace the old value of a config_key at the cfg_path with new_value
 # Don't rewrite commented lines
 rewrite_config(){
@@ -38,20 +69,19 @@ rewrite_config(){
   new_value=$3
 
   # Check if the value exists (without comment), if not add it to the file
-  $(grep -v '^[[:space:]]*#' $1  | grep -q $2)
+  $(grep -v '^[[:space:]]*#' "$1"  | grep -q "$2")
   ret="$?"
-  if [ "$ret" == "1" ] ; then                             
-      echo "$2=$3" >> $1     
-  else                  
+  if [ "$ret" == "1" ] ; then
+      echo "$2=$3" >> $1
+  else
         sed -i -e "/\\s*#.*/!{/""$cfg_key""=/ s/=.*/=""$new_value""/}" "$cfg_path"
-  fi          
+  fi
 }
 
 # Control the blue led
 blue_led(){
   case "$1" in
   on)
-    setgpio 38 1
     setgpio 39 0
     ;;
   off)
@@ -75,7 +105,6 @@ yellow_led(){
   case "$1" in
   on)
     setgpio 38 0
-    setgpio 39 1
     ;;
   off)
     setgpio 38 1
@@ -150,40 +179,48 @@ ir_cut(){
 motor(){
   if [ -z "$2" ]
   then
-    steps=100
+    steps=$STEP
   else
     steps=$2
   fi
   case "$1" in
   up)
     /system/sdcard/bin/motor -d u -s "$steps"
+    update_motor_pos "$steps"
     ;;
   down)
     /system/sdcard/bin/motor -d d -s "$steps"
+    update_motor_pos "$steps"
     ;;
   left)
     /system/sdcard/bin/motor -d l -s "$steps"
+    update_motor_pos "$steps"
     ;;
   right)
     /system/sdcard/bin/motor -d r -s "$steps"
+    update_motor_pos "$steps"
     ;;
-  vcalibrate)
+  reset_pos_count)
     /system/sdcard/bin/motor -d v -s "$steps"
-    ;;
-  hcalibrate)
-    /system/sdcard/bin/motor -d h -s "$steps"
-    ;;
-  calibrate)
-    /system/sdcard/bin/motor -d f -s "$steps"
+    update_motor_pos "$steps"
     ;;
   status)
     if [ "$2" = "horizontal" ]; then
-        echo $(/system/sdcard/bin/motor -d u -s 0 | grep "x:" | awk  '{print $2}')
+        /system/sdcard/bin/motor -d u -s 0 | grep "x:" | awk  '{print $2}'
     else
-        echo $(/system/sdcard/bin/motor -d u -s 0 | grep "y:" | awk  '{print $2}')
+        /system/sdcard/bin/motor -d u -s 0 | grep "y:" | awk  '{print $2}'
     fi
     ;;
   esac
+
+}
+
+update_motor_pos(){
+  # Waiting for the motor to run.
+  SLEEP_NUM=$(awk -v a="$1" 'BEGIN{printf ("%f",a*1.3/1000)}')
+  sleep ${SLEEP_NUM//-/}
+  # Display AXIS to OSD
+  update_axis
 }
 
 # Read the light sensor
@@ -272,10 +309,12 @@ rtsp_mjpeg_server(){
 motion_detection(){
   case "$1" in
   on)
-    /system/sdcard/bin/setconf -k m -v 4
+    /system/sdcard/bin/setconf -k m -v $(get_config /system/sdcard/config/motion.conf motion_sensitivity)
+    rewrite_config /system/sdcard/config/motion.conf motion_detection "on"
     ;;
   off)
     /system/sdcard/bin/setconf -k m -v -1
+    rewrite_config /system/sdcard/config/motion.conf motion_detection "off"
     ;;
   status)
     status=$(/system/sdcard/bin/setconf -g m 2>/dev/null)
@@ -285,6 +324,50 @@ motion_detection(){
         ;;
       *)
         echo "ON"
+        ;;
+    esac
+  esac
+}
+
+# Control the motion detection mail function
+motion_send_mail(){
+  case "$1" in
+  on)
+    rewrite_config /system/sdcard/config/motion.conf send_email "true"
+    ;;
+  off)
+    rewrite_config /system/sdcard/config/motion.conf send_email "false"
+    ;;
+  status)
+    status=$(awk '/send_email/' /system/sdcard/config/motion.conf |cut -f2 -d \=)
+    case $status in
+      false)
+        echo "OFF"
+        ;;
+      true)
+        echo "ON"
+        ;;
+    esac
+  esac
+}
+
+# Control the motion detection Telegram function
+motion_send_telegram(){
+  case "$1" in
+  on)
+    rewrite_config /system/sdcard/config/motion.conf send_telegram "true"
+    ;;
+  off)
+    rewrite_config /system/sdcard/config/motion.conf send_telegram "false"
+    ;;
+  status)
+    status=$(awk '/send_telegram/' /system/sdcard/config/motion.conf |cut -f2 -d \=)
+    case $status in
+      true)
+        echo "ON"
+        ;;
+      *)
+        echo "OFF"
         ;;
     esac
   esac
@@ -316,9 +399,9 @@ motion_tracking(){
 night_mode(){
   case "$1" in
   on)
+    /system/sdcard/bin/setconf -k n -v 1
     ir_led on
     ir_cut off
-    /system/sdcard/bin/setconf -k n -v 1
     ;;
   off)
     ir_led off
@@ -356,11 +439,42 @@ auto_night_mode(){
   esac
 }
 
+# Take a snapshot
+snapshot(){
+    filename="/tmp/snapshot.jpg"
+    /system/sdcard/bin/getimage > "$filename" &
+    sleep 1
+}
+
 # Update axis
 update_axis(){
-  source /system/sdcard/config/osd.conf > /dev/null 2>/dev/null
-  AXIS=`/system/sdcard/bin/motor -d s | sed '3d' | awk '{printf ("%s ",$0)}' | awk '{print "X="$2,"Y="$4}'`
-  if [ "$DISPLAY_AXIS" == "true" ]; then
-    OSD="${OSD} ${AXIS}"
+  . /system/sdcard/config/osd.conf > /dev/null 2>/dev/null
+  AXIS=$(/system/sdcard/bin/motor -d s | sed '3d' | awk '{printf ("%s ",$0)}' | awk '{print " X="$2,"Y="$4}')
+  
+  if [ "$ENABLE_OSD" = "true" ]; then
+    if [ "$DISPLAY_AXIS" = "true" ]; then
+      OSD="${OSD}${AXIS}"
+    fi
+    
+    /system/sdcard/bin/setconf -k o -v "$OSD"
   fi
+}
+
+# Set timezone from the timezone config file to system timezone
+set_timezone(){
+  timezone_name=$(cat /system/sdcard/config/timezone.conf)
+  timezone=$(/system/sdcard/bin/busybox awk -F '\t' -v tzn="$timezone_name" '($1==tzn) {print $2}' /system/sdcard/www/timezones.tsv)
+  if [ "$(cat /etc/TZ)" != "$timezone" ]; then
+    echo "$timezone" > /etc/TZ
+  fi
+}
+
+# Reboot the System
+reboot_system() {
+  /sbin/reboot
+}
+
+# Re-Mount the SD Card
+remount_sdcard() {
+  mount -o remount,rw /system/sdcard
 }
