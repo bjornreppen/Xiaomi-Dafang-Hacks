@@ -1,5 +1,7 @@
 #!/bin/sh
 
+ . /system/sdcard/scripts/common_functions.sh
+
 CURL="/system/sdcard/bin/curl"
 LASTUPDATEFILE="/tmp/last_update_id"
 TELEGRAM="/system/sdcard/bin/telegram"
@@ -20,37 +22,41 @@ sendMem() {
 }
 
 detectionOn() {
-  . /system/sdcard/scripts/common_functions.sh
   motion_detection on && $TELEGRAM m "Motion detection started"
 }
 
 detectionOff() {
-  . /system/sdcard/scripts/common_functions.sh
   motion_detection off && $TELEGRAM m "Motion detection stopped"
 }
 
 textAlerts() {
-  . /system/sdcard/scripts/common_functions.sh
-  rewrite_config /system/sdcard/config/telegram.conf telegram_alert_type "text"
-  $TELEGRAM m "Text alerts on motion detection"
+  rewrite_config /system/sdcard/config/motion.conf telegram_alert_type "text"
+  $TELEGRAM m "Text alerts on motion detection enabled"
 }
 
 imageAlerts() {
-  . /system/sdcard/scripts/common_functions.sh
-  rewrite_config /system/sdcard/config/telegram.conf telegram_alert_type "image"
-  $TELEGRAM m "Image alerts on motion detection"
+  rewrite_config /system/sdcard/config/motion.conf telegram_alert_type "image"
+  $TELEGRAM m "Image alerts on motion detection enabled"
+}
+
+videoAlerts() {
+  rewrite_config /system/sdcard/config/motion.conf telegram_alert_type "video"
+  $TELEGRAM m "Video alerts on motion detection enabled"
 }
 
 respond() {
-  case $1 in
+  cmd=$1
+  [ $chatId -lt 0 ] && cmd=${1%%@*}
+  case $cmd in
     /mem) sendMem;;
     /shot) sendShot;;
     /on) detectionOn;;
     /off) detectionOff;;
     /textalerts) textAlerts;;
     /imagealerts) imageAlerts;;
-    /help) $TELEGRAM m "######### Bot commands #########\n# /mem - show memory information\n# /shot - take a shot\n# /on - motion detect on\n# /off - motion detect off\n# /textalerts - Text alerts on motion detection\n# /imagealerts - Image alerts on motion detection";;
-    *) $TELEGRAM m "I can't respond to '$1' command"
+    /videoalerts) videoAlerts;;
+    /help | /start) $TELEGRAM m "######### Bot commands #########\n# /mem - show memory information\n# /shot - take a snapshot\n# /on - motion detection on\n# /off - motion detection off\n# /textalerts - Text alerts on motion detection\n# /imagealerts - Image alerts on motion detection\n# /videoalerts - Video alerts on motion detection";;
+    *) $TELEGRAM m "I can't respond to '$cmd' command"
   esac
 }
 
@@ -75,16 +81,20 @@ main() {
     return 0
   fi;
 
-  chatId=$(echo "$json" | $JQ -r '.result[0].message.chat.id // ""')
+  messageAttr="message"
+  messageVal=$(echo "$json" | $JQ -r '.result[0].message // ""')
+  [ -z "$messageVal" ] && messageAttr="edited_message"
+
+  chatId=$(echo "$json" | $JQ -r ".result[0].$messageAttr.chat.id // \"\"")
   [ -z "$chatId" ] && return 0 # no new messages
 
-  cmd=$(echo "$json" | $JQ -r '.result[0].message.text // ""')
+  cmd=$(echo "$json" | $JQ -r ".result[0].$messageAttr.text // \"\"")
   updateId=$(echo "$json" | $JQ -r '.result[0].update_id // ""')
 
   if [ "$chatId" != "$userChatId" ]; then
-    username=$(echo "$json" | $JQ -r '.result[0].message.from.username // ""')
-    firstName=$(echo "$json" | $JQ -r '.result[0].message.from.first_name // ""')
-    $TELEGRAM m "Received message from not authrized chat: $chatId\nUser: $username($firstName)\nMessage: $cmd"
+    username=$(echo "$json" | $JQ -r ".result[0].$messageAttr.from.username // \"\"")
+    firstName=$(echo "$json" | $JQ -r ".result[0].$messageAttr.from.first_name // \"\"")
+    $TELEGRAM m "Received message from unauthorized chat id: $chatId\nUser: $username($firstName)\nMessage: $cmd"
   else
     respond $cmd
   fi;
