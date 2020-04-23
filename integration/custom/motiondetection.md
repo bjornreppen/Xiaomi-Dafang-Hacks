@@ -6,9 +6,9 @@ to `config/userscripts/motiondetection`
 When motion is detected, the first argument to the script will be `on` and when motion detection
 ends it will receive `off`.
 
-For example, to send an email containing snapshots on a certain condition, for example
+For example, to send an email containing snapshots on a certain condition, for example 
 only when the house is empty, you can check an external service (e.g. openhab)
-before triggering the email.
+before triggering the email. 
 
 -- sendEmail.sh --
 
