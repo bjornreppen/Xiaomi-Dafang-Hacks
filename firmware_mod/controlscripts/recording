@@ -2,7 +2,7 @@
 . /system/sdcard/config/rtspserver.conf
 
 PIDFILE="/run/recording.pid"
-DCIM_PATH="/system/sdcard/DCIM/Recording"
+DCIM_PATH="/system/sdcard/www/recording"
 
 ## UserName and password
 if [ "$USERNAME" != "" ]; then
